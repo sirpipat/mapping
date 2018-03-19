@@ -50,10 +50,10 @@ def main():
     ax[3][1].set_title('P10')
     ax[3][2].set_title('P20')
     ax[3][3].set_title('PP20')
-    for ii in ax.reshape(ax.size):
+    #for ii in ax.reshape(ax.size):
         #x = np.linspace(0,10)
         #ii.plot(x,x,color='k')
-        ii.set_xlim(-1,1)
+        #ii.set_xlim(-1,1)
         #ii.set_ylim(-1,1)
 
     for ii in dat_list:
@@ -83,19 +83,22 @@ def stat_plot(f,key,ax):
     try:
         p = f[key]['pick_info'][:]
         c2 = np.array([float(i[18]) for i in p])
-        c1 = np.array([float(i[17]) for i in p])
-        l0 = np.array([float(i[23]) for i in p])
-        l1 = np.array([float(i[24]) for i in p])
-        t = np.array([float(i[11]) for i in p])
-        dt = np.array([float(i[12]) for i in p])
-        evdp = np.array([float(i[8]) for i in p])
-        mag = np.array([float(i[9]) for i in p])
+        #c1 = np.array([float(i[17]) for i in p])
+        #l0 = np.array([float(i[23]) for i in p])
+        #l1 = np.array([float(i[24]) for i in p])
+        #t = np.array([float(i[11]) for i in p])
+        #dt = np.array([float(i[12]) for i in p])
+        #evdp = np.array([float(i[8]) for i in p])
+        #mag = np.array([float(i[9]) for i in p])
         right_rat = np.array([float(i[-1]) for i in p])
         left_rat = np.array([float(i[-2]) for i in p])
         amp_rat = np.array([float(i[-3]) for i in p])
-        ax.scatter(c2-c1,l1-l0,alpha=0.01)
-        #ax.scatter(c2,left_rat/right_rat,alpha=0.01)
-        #ax.scatter(c2,mag,alpha=0.01)
+        s_amp = np.array([float(i[19]) for i in p])
+        d_amp = np.array([float(i[20]) for i in p])
+        #ax.scatter(c1,c2,alpha=0.01)
+        #ax.scatter(c2-c1,l1-l0,alpha=0.01)
+        ax.scatter(s_amp/d_amp,amp_rat,alpha=0.01)
+        #ax.scatter(l1,mag,alpha=0.01)
         #if np.sum(c2)-np.sum(c1) <= 0:
         #    print f,key
         #ax.axvline(0,color='k',lw=0.5)
