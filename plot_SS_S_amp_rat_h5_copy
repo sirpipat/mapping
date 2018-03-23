@@ -50,6 +50,11 @@ def main():
     s10_total = 0
     s20_total = 0
     sdiff20_total = 0
+
+    dist_bin = np.zeros(90)
+    ### FIXME: Implement here
+
+
     for ii in dat_list:
         print ii
         h5f = h5py.File(ii,'r',driver='core')
@@ -158,7 +163,8 @@ def list_plot(h5f,m,total,name,args):
             #print 'SS_tshift'
             continue
         else:
-            plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],SS_S_amp_rat[ii])
+            dist = plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],
+                               SS_S_amp_rat[ii])
             pick_count += 1
 
     return pick_count
@@ -167,6 +173,7 @@ def plot_coords(m,slat,slon,rlat,rlon,SS_S_amp_rat):
     dist = vincenty((slat,slon),(rlat,rlon)).nautical/60
     m.scatter(dist,SS_S_amp_rat,color='k',s=1,alpha=0.1,
               rasterized=True)
+    return dist
 
 main()
 

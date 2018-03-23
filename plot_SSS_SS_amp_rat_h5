@@ -3,10 +3,10 @@
 '''
 ==============================================================================
 
-File Name : plot_SS_S_amp_rat_h5
+File Name : plot_SSS_SS_amp_rat_h5
 Purpose : plot SS-S amplitude ratio from h5 data_file
-Creation Date : 03-22-2018
-Last Modified : Thu 22 Mar 2018 04:43:24 PM EDT
+Creation Date : 03-23-2018
+Last Modified : Fri 23 Mar 2018 04:43:24 PM EDT
 Created By : Samuel M. Haugland
 
 ==============================================================================
@@ -21,8 +21,8 @@ from glob import glob
 
 
 def main():
-    parser = argparse.ArgumentParser( 
-                       description='map S times')
+    parser = argparse.ArgumentParser(
+                       description='plot SSS-SS amp ratio')
     parser.add_argument('-f','--h5_files',metavar='*picks.h5',type=str,
                         help='list of h5_files')
     parser.add_argument('-l','--max_dist',metavar='float',type=float,
@@ -47,65 +47,41 @@ def main():
     fig,m = plt.subplots()
     dat_list = glob(args.h5_files)
     dat_list.sort()
-    s10_total = 0
-    s20_total = 0
-    sdiff20_total = 0
+    ss_total = 0
     for ii in dat_list:
         print ii
         h5f = h5py.File(ii,'r',driver='core')
         try:
-            s10_total += list_plot(h5f,m,s10_total,'S10',args)
+            ss_total += list_plot(h5f,m,ss_total,'SS20',args)
         except IndexError:
-            print 's10_index'
-            s10_total += 0
-        try:
-            s20_total += list_plot(h5f,m,s20_total,'S20',args)
-        except IndexError:
-            print 's20_index'
-            s20_total += 0
-        try:
-            sdiff20_total += list_plot(h5f,m,sdiff20_total,'Sdiff20',args)
-        except IndexError:
-            print 'sdiff_index'
-            sdiff20_total += 0
+            print 'ss20_index'
+            ss_total += 0
             continue
 
-    print 'SS20-S10 total: ', s10_total
-    print 'SS20-S20 total: ', s20_total
-    print 'SS20-Sdiff20 total: ', sdiff20_total
+    print 'SSS30-SS20 total: ', ss_total
     plt.xlabel('distance (degrees)')
-    plt.ylabel('log10((SS_d_amp/S_d_amp)/(SS_s_amp/S_s_amp))')
-    plt.title('SS-S amplitude ratio vs distance')
+    plt.ylabel('log10((SSS_d_amp/SS_d_amp)/(SSS_s_amp/SS_s_amp))')
+    plt.title('SSS-SS amplitude ratio vs distance')
     plt.tight_layout()
-    plt.savefig('SS-S_amp_rat.png')
+    plt.savefig('SSS-SS_amp_rat.png')
     plt.show()
 
 def list_plot(h5f,m,total,name,args):
     try:
-        s_dat = h5f[name]['pick_info'][:]
-        ss_dat = h5f['SS20']['pick_info'][:]
-        s_name = s_dat[:,1]
+        ss_dat = h5f[name]['pick_info'][:]
+        sss_dat = h5f['SSS30']['pick_info'][:]
         ss_name = ss_dat[:,1]
+        sss_name = sss_dat[:,1]
 
-        c = np.array(list(set(s_name).intersection(set(ss_name))))
-        s_mask = np.in1d(s_dat[:,1],c)
+        c = np.array(list(set(ss_name).intersection(set(sss_name))))
         ss_mask = np.in1d(ss_dat[:,1],c)
+        sss_mask = np.in1d(sss_dat[:,1],c)
 
-        slat = np.array([float(ii) for ii in s_dat[s_mask,2]])
-        slon = np.array([float(ii) for ii in s_dat[s_mask,3]])
-        rlat = np.array([float(ii) for ii in s_dat[s_mask,4]])
-        rlon = np.array([float(ii) for ii in s_dat[s_mask,5]])
-        gcarc = np.array([float(ii) for ii in s_dat[s_mask,6]])
-
-        S_del_t = np.array([float(ii) for ii in s_dat[s_mask,11]])
-        S_update_t = np.array([float(ii) for ii in s_dat[s_mask,12]])
-        S_t_shift = S_del_t + S_update_t
-        S_corcoeft_1 = np.array([float(ii) for ii in s_dat[s_mask,17]])
-        S_corcoeft_2 = np.array([float(ii) for ii in s_dat[s_mask,18]])
-        S_s_amp = np.array([float(ii) for ii in s_dat[s_mask,19]])
-        S_d_amp = np.array([float(ii) for ii in s_dat[s_mask,20]])
-        S_lsq_1 = np.array([float(ii) for ii in s_dat[s_mask,23]])
-        S_lsq_2 = np.array([float(ii) for ii in s_dat[s_mask,24]])
+        slat = np.array([float(ii) for ii in ss_dat[ss_mask,2]])
+        slon = np.array([float(ii) for ii in ss_dat[ss_mask,3]])
+        rlat = np.array([float(ii) for ii in ss_dat[ss_mask,4]])
+        rlon = np.array([float(ii) for ii in ss_dat[ss_mask,5]])
+        gcarc = np.array([float(ii) for ii in ss_dat[ss_mask,6]])
 
         SS_del_t = np.array([float(ii) for ii in ss_dat[ss_mask,11]])
         SS_update_t = np.array([float(ii) for ii in ss_dat[ss_mask,12]])
@@ -117,8 +93,19 @@ def list_plot(h5f,m,total,name,args):
         SS_lsq_1 = np.array([float(ii) for ii in ss_dat[ss_mask,23]])
         SS_lsq_2 = np.array([float(ii) for ii in ss_dat[ss_mask,24]])
 
-        time_diff = SS_t_shift-S_t_shift
-        SS_S_amp_rat = (SS_d_amp/S_d_amp) / (SS_s_amp/S_s_amp)
+        SSS_del_t = np.array([float(ii) for ii in sss_dat[sss_mask,11]])
+        SSS_update_t = np.array([float(ii) for ii in sss_dat[sss_mask,12]])
+        SSS_t_shift = SSS_del_t + SSS_update_t
+        SSS_corcoeft_1 = np.array([float(ii) for ii in sss_dat[sss_mask,17]])
+        SSS_corcoeft_2 = np.array([float(ii) for ii in sss_dat[sss_mask,18]])
+        SSS_s_amp = np.array([float(ii) for ii in sss_dat[sss_mask,19]])
+        SSS_d_amp = np.array([float(ii) for ii in sss_dat[sss_mask,20]])
+        SSS_lsq_1 = np.array([float(ii) for ii in sss_dat[sss_mask,23]])
+        SSS_lsq_2 = np.array([float(ii) for ii in sss_dat[sss_mask,24]])
+
+
+        time_diff = SSS_t_shift-SS_t_shift
+        SSS_SS_amp_rat = (SSS_d_amp/SS_d_amp) / (SSS_s_amp/SS_s_amp)
 
     except KeyError,IndexError:
         return 0
@@ -129,43 +116,43 @@ def list_plot(h5f,m,total,name,args):
             #print 'gcarc'
             continue
         if args.dt_shift:
-            if np.abs(S_del_t[ii]) < np.abs(S_update_t[ii]):
-                #print 'S update'
-                continue
             if np.abs(SS_del_t[ii]) < np.abs(SS_update_t[ii]):
                 #print 'SS update'
                 continue
-        if S_corcoeft_1[ii] < args.min_c1 or S_corcoeft_2[ii] < args.min_c2:
-            #print 'S corcoeft'
-            #print corcoeft_1[ii],corcoeft_2[ii]
-            continue
+            if np.abs(SSS_del_t[ii]) < np.abs(SSS_update_t[ii]):
+                #print 'SSS update'
+                continue
         if SS_corcoeft_1[ii] < args.min_c1 or SS_corcoeft_2[ii] < args.min_c2:
-            #print 'SS corcoeft'
+            #print 'SSS corcoeft'
             #print corcoeft_1[ii],corcoeft_2[ii]
             continue
-        if S_lsq_1[ii] < args.min_lsq1 or S_lsq_2[ii] < args.min_lsq2:
-            #print 'S lsq'
-            #print lsq_1[ii],lsq_2[ii]
+        if SSS_corcoeft_1[ii] < args.min_c1 or SSS_corcoeft_2[ii] < args.min_c2:
+            #print 'SSS corcoeft'
+            #print corcoeft_1[ii],corcoeft_2[ii]
             continue
         if SS_lsq_1[ii] < args.min_lsq1 or SS_lsq_2[ii] < args.min_lsq2:
             #print 'SS lsq'
             #print lsq_1[ii],lsq_2[ii]
             continue
-        if S_t_shift[ii] > args.max_dt:
-            #print 'S_tshift'
+        if SSS_lsq_1[ii] < args.min_lsq1 or SSS_lsq_2[ii] < args.min_lsq2:
+            #print 'SSS lsq'
+            #print lsq_1[ii],lsq_2[ii]
             continue
         if SS_t_shift[ii] > args.max_dt:
             #print 'SS_tshift'
             continue
+        if SSS_t_shift[ii] > args.max_dt:
+            #print 'SSS_tshift'
+            continue
         else:
-            plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],SS_S_amp_rat[ii])
+            plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],SSS_SS_amp_rat[ii])
             pick_count += 1
 
     return pick_count
 
-def plot_coords(m,slat,slon,rlat,rlon,SS_S_amp_rat):
+def plot_coords(m,slat,slon,rlat,rlon,SSS_SS_amp_rat):
     dist = vincenty((slat,slon),(rlat,rlon)).nautical/60
-    m.scatter(dist,SS_S_amp_rat,color='k',s=1,alpha=0.1,
+    m.scatter(dist,SSS_SS_amp_rat,color='k',s=1,alpha=0.1,
               rasterized=True)
 
 main()
