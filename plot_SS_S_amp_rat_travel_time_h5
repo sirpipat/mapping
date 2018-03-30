@@ -3,7 +3,7 @@
 '''
 ==============================================================================
 
-File Name : plot_SS_S_amp_rat_h5_copy
+File Name : plot_SS_S_amp_rat_travel_time_h5
 Purpose : plot SS-S amplitude ratio from h5 data_file
 Creation Date : 03-22-2018
 Last Modified : Thu 22 Mar 2018 04:43:24 PM EDT
@@ -53,7 +53,7 @@ def main():
 
     # each bin interval is 2 degrees
     # dist_bin[0]  = 60 +- 1 degrees
-    # dist_bin[89] = 149 +- 1 degrees
+    # dist_bin[90] = 149 +- 1 degrees
     dist_bin = np.zeros(90)
     avg_bin = np.zeros(90)
 
@@ -85,15 +85,12 @@ def main():
         if dist_bin[ii] != 0:
             plt.scatter(ii+60,avg_bin[ii]/dist_bin[ii],color='g')
 
-    for ii in (87,88,89):
-        print ii+60, ' - ', avg_bin[ii], ' - ', dist_bin[ii]
-
     #m.set_ylim(0,2)
-    plt.xlabel('distance (degrees)')
-    plt.ylabel('log10((SS_d_amp/S_d_amp)/(SS_s_amp/S_s_amp))')
-    plt.title('SS-S amplitude ratio vs distance')
+    plt.xlabel('SS-S travel time (seconds)')
+    plt.ylabel('(SS_d_amp/S_d_amp)/(SS_s_amp/S_s_amp)')
+    plt.title('SS-S amplitude ratio vs SS-S travel time')
     plt.tight_layout()
-    plt.savefig('SS-S_amp_rat_copy.png')
+    plt.savefig('SS-S_amp_rat_travel_time.png')
     plt.show()
 
 def list_plot(h5f,m,total,name,args,dist_bin,avg_bin):
@@ -113,6 +110,7 @@ def list_plot(h5f,m,total,name,args,dist_bin,avg_bin):
         rlon = np.array([float(ii) for ii in s_dat[s_mask,5]])
         gcarc = np.array([float(ii) for ii in s_dat[s_mask,6]])
 
+        S_tobs = np.array([float(ii) for ii in s_dat[s_mask,10]])
         S_del_t = np.array([float(ii) for ii in s_dat[s_mask,11]])
         S_update_t = np.array([float(ii) for ii in s_dat[s_mask,12]])
         S_t_shift = S_del_t + S_update_t
@@ -123,6 +121,7 @@ def list_plot(h5f,m,total,name,args,dist_bin,avg_bin):
         S_lsq_1 = np.array([float(ii) for ii in s_dat[s_mask,23]])
         S_lsq_2 = np.array([float(ii) for ii in s_dat[s_mask,24]])
 
+        SS_tobs = np.array([float(ii) for ii in ss_dat[ss_mask,10]])
         SS_del_t = np.array([float(ii) for ii in ss_dat[ss_mask,11]])
         SS_update_t = np.array([float(ii) for ii in ss_dat[ss_mask,12]])
         SS_t_shift = SS_del_t + SS_update_t
@@ -133,8 +132,8 @@ def list_plot(h5f,m,total,name,args,dist_bin,avg_bin):
         SS_lsq_1 = np.array([float(ii) for ii in ss_dat[ss_mask,23]])
         SS_lsq_2 = np.array([float(ii) for ii in ss_dat[ss_mask,24]])
 
-        time_diff = SS_t_shift-S_t_shift
-        SS_S_amp_rat = np.log10((SS_d_amp/S_d_amp) / (SS_s_amp/S_s_amp))
+        SS_S_delta_tobs = SS_tobs - S_tobs
+        SS_S_amp_rat = (SS_d_amp/S_d_amp) / (SS_s_amp/S_s_amp)
 
     except KeyError,IndexError:
         return 0
@@ -173,29 +172,12 @@ def list_plot(h5f,m,total,name,args,dist_bin,avg_bin):
         if SS_t_shift[ii] > args.max_dt:
             #print 'SS_tshift'
             continue
-        if SS_S_amp_rat[ii] == 0:
-            continue
         else:
-            dist = plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],
-                               SS_S_amp_rat[ii])
-            dist = int(dist)-59
-            if dist >= 0 and dist <= 89:
-                dist_bin[dist] += 1
-                avg_bin[dist] += SS_S_amp_rat[ii]
-            if dist >= 1 and dist <= 90:
-                dist_bin[dist-1] += 1
-                avg_bin[dist-1] += SS_S_amp_rat[ii]
+            m.scatter(SS_S_delta_tobs[ii],SS_S_amp_rat[ii],color='k',s=1,
+                      alpha=0.1,rasterized=True)
             pick_count += 1
 
     return pick_count
-
-def plot_coords(m,slat,slon,rlat,rlon,SS_S_amp_rat):
-    dist = vincenty((slat,slon),(rlat,rlon)).nautical/60
-    m.scatter(dist,SS_S_amp_rat,color='k',s=1,alpha=1,
-              rasterized=True)
-    if dist >= 146:
-        print dist, ' -  ', SS_S_amp_rat 
-    return dist
 
 main()
 
