@@ -83,10 +83,7 @@ def main():
 
     for ii in range(len(avg_bin)):
         if dist_bin[ii] != 0:
-            plt.scatter(ii+60,avg_bin[ii]/dist_bin[ii],color='g')
-
-    for ii in (87,88,89):
-        print ii+60, ' - ', avg_bin[ii], ' - ', dist_bin[ii]
+            plt.scatter(ii+60,avg_bin[ii]/dist_bin[ii],color='orange')
 
     #m.set_ylim(0,2)
     plt.xlabel('distance (degrees)')
@@ -191,10 +188,8 @@ def list_plot(h5f,m,total,name,args,dist_bin,avg_bin):
 
 def plot_coords(m,slat,slon,rlat,rlon,SS_S_amp_rat):
     dist = vincenty((slat,slon),(rlat,rlon)).nautical/60
-    m.scatter(dist,SS_S_amp_rat,color='k',s=1,alpha=1,
+    m.scatter(dist,SS_S_amp_rat,color='k',s=1,alpha=0.1,
               rasterized=True)
-    if dist >= 146:
-        print dist, ' -  ', SS_S_amp_rat 
     return dist
 
 main()

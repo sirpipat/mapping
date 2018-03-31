@@ -161,7 +161,7 @@ def list_plot(h5f,m,total,name,args):
             pick_count += 1
 
     lon,lat = m(slon[0],slat[0])
-    m.scatter(lon,lat,color='r',s=40,marker='*',alpha=1,rasterized=True)
+    m.scatter(lon,lat,color='lime',s=40,marker='*',alpha=1,rasterized=True)
     return pick_count
 
 def plot_coords(m,slat,slon,rlat,rlon,del_t):
