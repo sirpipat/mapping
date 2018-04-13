@@ -168,7 +168,7 @@ def plot_coords(m,slat,slon,rlat,rlon,del_t):
         color = 'red'
         marker = 'x'
         facecolor='red'
-    m.scatter(lon,lat,linewidth=1,color=color,alpha=0.2,
+    m.scatter(lon,lat,linewidth=1,color=color,alpha=0.05,
               s=1.5*size,marker=marker,facecolor=facecolor,rasterized=True)
 
 main()

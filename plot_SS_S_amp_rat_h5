@@ -3,7 +3,7 @@
 '''
 ==============================================================================
 
-File Name : plot_SS_S_amp_rat_h5
+File Name : plot_SS_S_amp_rat_h5_copy
 Purpose : plot SS-S amplitude ratio from h5 data_file
 Creation Date : 03-22-2018
 Last Modified : Thu 22 Mar 2018 04:43:24 PM EDT
@@ -50,21 +50,31 @@ def main():
     s10_total = 0
     s20_total = 0
     sdiff20_total = 0
+
+    # each bin interval is 2 degrees
+    # dist_bin[0]  = 60 +- 1 degrees
+    # dist_bin[89] = 149 +- 1 degrees
+    dist_bin = np.zeros(90)
+    avg_bin = np.zeros(90)
+
     for ii in dat_list:
         print ii
-        h5f = h5py.File(ii,'r',driver='core')
         try:
-            s10_total += list_plot(h5f,m,s10_total,'S10',args)
+            h5f = h5py.File(ii,'r',driver='core')
+        except IOError:
+            continue
+        try:
+            s10_total += list_plot(h5f,m,s10_total,'S10',args,dist_bin,avg_bin)
         except IndexError:
             print 's10_index'
             s10_total += 0
         try:
-            s20_total += list_plot(h5f,m,s20_total,'S20',args)
+            s20_total += list_plot(h5f,m,s20_total,'S20',args,dist_bin,avg_bin)
         except IndexError:
             print 's20_index'
             s20_total += 0
         try:
-            sdiff20_total += list_plot(h5f,m,sdiff20_total,'Sdiff20',args)
+            sdiff20_total += list_plot(h5f,m,sdiff20_total,'Sdiff20',args,dist_bin,avg_bin)
         except IndexError:
             print 'sdiff_index'
             sdiff20_total += 0
@@ -73,6 +83,12 @@ def main():
     print 'SS20-S10 total: ', s10_total
     print 'SS20-S20 total: ', s20_total
     print 'SS20-Sdiff20 total: ', sdiff20_total
+
+    for ii in range(len(avg_bin)):
+        if dist_bin[ii] != 0:
+            plt.scatter(ii+60,avg_bin[ii]/dist_bin[ii],color='orange')
+
+    #m.set_ylim(0,2)
     plt.xlabel('distance (degrees)')
     plt.ylabel('log10((SS_d_amp/S_d_amp)/(SS_s_amp/S_s_amp))')
     plt.title('SS-S amplitude ratio vs distance')
@@ -80,7 +96,7 @@ def main():
     plt.savefig('SS-S_amp_rat.png')
     plt.show()
 
-def list_plot(h5f,m,total,name,args):
+def list_plot(h5f,m,total,name,args,dist_bin,avg_bin):
     try:
         s_dat = h5f[name]['pick_info'][:]
         ss_dat = h5f['SS20']['pick_info'][:]
@@ -118,7 +134,7 @@ def list_plot(h5f,m,total,name,args):
         SS_lsq_2 = np.array([float(ii) for ii in ss_dat[ss_mask,24]])
 
         time_diff = SS_t_shift-S_t_shift
-        SS_S_amp_rat = (SS_d_amp/S_d_amp) / (SS_s_amp/S_s_amp)
+        SS_S_amp_rat = np.log10((SS_d_amp/S_d_amp) / (SS_s_amp/S_s_amp))
 
     except KeyError,IndexError:
         return 0
@@ -157,8 +173,18 @@ def list_plot(h5f,m,total,name,args):
         if SS_t_shift[ii] > args.max_dt:
             #print 'SS_tshift'
             continue
+        if SS_S_amp_rat[ii] == 0:
+            continue
         else:
-            plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],SS_S_amp_rat[ii])
+            dist = plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],
+                               SS_S_amp_rat[ii])
+            dist = int(dist)-59
+            if dist >= 0 and dist <= 89:
+                dist_bin[dist] += 1
+                avg_bin[dist] += SS_S_amp_rat[ii]
+            if dist >= 1 and dist <= 90:
+                dist_bin[dist-1] += 1
+                avg_bin[dist-1] += SS_S_amp_rat[ii]
             pick_count += 1
 
     return pick_count
@@ -167,6 +193,7 @@ def plot_coords(m,slat,slon,rlat,rlon,SS_S_amp_rat):
     dist = vincenty((slat,slon),(rlat,rlon)).nautical/60
     m.scatter(dist,SS_S_amp_rat,color='k',s=1,alpha=0.1,
               rasterized=True)
+    return dist
 
 main()
 
