@@ -42,6 +42,8 @@ def main():
                         default=0.70,help='minimum lsq_2 allowed')
     parser.add_argument('--max_dt',metavar='float',type=float,
                         default=30.0,help='maximum delta_T')
+    parser.add_argument('--min_dt',metavar='float',type=float,
+                        default=1.0,help='minimum delta_T')
     parser.add_argument('--dt_shift',metavar='bool',type=bool,
                         default=True,help='mandate updated time shift be less\
                                            than original')
@@ -156,6 +158,8 @@ def list_plot(h5f,m,total,name,args):
         if SS_t_shift[ii] > args.max_dt:
             #print 'SS_tshift'
             continue
+        if np.abs(SS_t_shift[ii]-S_t_shift[ii]) < args.min_dt:
+            continue
         else:
             plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],time_diff[ii])
             pick_count += 1
@@ -197,7 +201,7 @@ def plot_coords(m,slat,slon,rlat,rlon,del_t):
         facecolor='red'
     u = size * np.sin(np.radians(mp_bearing))
     v = size * np.cos(np.radians(mp_bearing))
-    m.quiver(lon,lat,u,v,color=color,width=0.001,alpha=0.1,headwidth=0.75,
+    m.quiver(lon,lat,u,v,color=color,width=0.001,alpha=0.3,headwidth=0.75,
              headlength=1.25,headaxislength=1.125,pivot='mid',
              scale=0.0001000,scale_units='xy',rasterized=True)
     #m.scatter(stlo,stla,color='k',marker='v',alpha=0.1,s=5,rasterized=True)
