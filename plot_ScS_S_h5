@@ -1,0 +1,159 @@
+#!/home/sirpipat/anaconda2/bin/python
+
+'''
+==============================================================================
+
+File Name       : plot_ScS_S_h5
+Purpose         : plot ScS-S travel time anomaly with epicenter distance
+Creation Date   : 06-09-2018
+Last Modified   : Thu 6 September 2018 04:33:55 PM EDT
+Created By      : Sirawich Pipatprathanporn
+
+==============================================================================
+'''
+import numpy as np
+from geopy.distance import vincenty
+from matplotlib import pyplot as plt
+import argparse
+import h5py
+from glob import glob
+
+def main():
+    parser = argparse.ArgumentParser(description='plot SKS-S times')
+    parser.add_argument('-f','--h5_files',metavar='*picks.h5',type=str,
+                        help='list of h5_files')
+    parser.add_argument('-l','--max_dist',metavar='float',type=float,
+                        default=180,help='maximum_distance (deg)')
+    parser.add_argument('-s','--min_dist',metavar='float',type=float,
+                        default=40,help='minimum distance (deg)')
+    parser.add_argument('-d','--depth',metavar='float',type=float,
+                        default=200,help='depth (km) for deep events')
+    parser.add_argument('--min_c1',metavar='float',type=float,
+                        default=0.5,help='minimum corcoeft_1 allowed')
+    parser.add_argument('--min_c2',metavar='float',type=float,
+                        default=0.75,help='minimum corcoeft_2 allowed')
+    parser.add_argument('--min_lsq1',metavar='float',type=float,
+                        default=0.5,help='minimum lsq_1 allowed')
+    parser.add_argument('--min_lsq2',metavar='float',type=float,
+                        default=0.70,help='minimum lsq_2 allowed')
+    parser.add_argument('--max_dt',metavar='float',type=float,
+                        default=30.0,help='maximum delta_T')
+    parser.add_argument('--dt_shift',metavar='bool',type=bool,
+                        default=True,help='mandate updated time shift be less\
+                                than original')
+
+    args = parser.parse_args()
+    dat_list = glob(args.h5_files)
+    dat_list.sort()
+
+    scs_s_de = []
+    scs_s_sh = []
+    edist_de = []
+    edist_sh = []
+    picks = 0
+
+    for ii in dat_list:
+        print ii
+        try:
+            h5f = h5py.File(ii,'r',driver='core')
+        except IOError:
+            print('IOError')
+            continue
+        for iii in ['S10','S20']:
+            try:
+                picks += list_plot(h5f,iii,scs_s_de,edist_de,scs_s_sh,
+                                   edist_sh,args)
+            except IndexError:
+                print('IndexError')
+                continue
+
+    print('pick_counts =',picks)
+
+    fig,(ax0, ax1, ax2) = plt.subplots(3,1,sharex=True,sharey=True,
+                          figsize=(10,10))
+    ax0.scatter(edist_sh,scs_s_sh,color='k',s=1,alpha=0.1,rasterized=True)
+    ax0.scatter(edist_de,scs_s_de,color='k',s=1,alpha=0.1,rasterized=True) 
+    ax1.scatter(edist_sh,scs_s_sh,color='k',s=1,alpha=0.1,rasterized=True)
+    ax2.scatter(edist_de,scs_s_de,color='k',s=1,alpha=0.1,rasterized=True)
+    ax0.set_title('ScS-S vs epicenter distance')
+    plt.xlabel('epicenter distance (deg)')
+    ax0.set_ylabel('ScS-S: all (sec)')
+    ax1.set_ylabel('ScS-S: shallow (sec)')
+    ax2.set_ylabel('ScS-S: deep (sec)')
+    plt.savefig('plot_ScS-S_distance.pdf')
+    plt.show()
+
+def list_plot(h5f,s_type,scs_s_de,edist_de,scs_s_sh,edist_sh,args):
+    try:
+        scs_dat = h5f['ScS10']['pick_info'][:]
+        s_dat = h5f[s_type]['pick_info'][:]
+        scs_name = scs_dat[:,1]
+        s_name = s_dat[:,1]
+
+        c = np.array(list(set(scs_name).intersection(set(s_name))))
+        scs_mask = np.in1d(scs_dat[:,1],c)
+        s_mask = np.in1d(s_dat[:,1],c)
+
+        slat = np.array([float(ii) for ii in scs_dat[scs_mask,2]])
+        slon = np.array([float(ii) for ii in scs_dat[scs_mask,3]])
+        rlat = np.array([float(ii) for ii in scs_dat[scs_mask,4]])
+        rlon = np.array([float(ii) for ii in scs_dat[scs_mask,5]])
+        gcarc = np.array([float(ii) for ii in scs_dat[scs_mask,6]])
+        evdp = np.array([float(ii) for ii in scs_dat[scs_mask,8]])
+
+        scs_del_t = np.array([float(ii) for ii in scs_dat[scs_mask,11]])
+        scs_update_t = np.array([float(ii) for ii in scs_dat[scs_mask,12]])
+        scs_t_shift = scs_del_t + scs_update_t
+        scs_corcoeft_1 = np.array([float(ii) for ii in scs_dat[scs_mask,17]])
+        scs_corcoeft_2 = np.array([float(ii) for ii in scs_dat[scs_mask,18]])
+        scs_lsq_1 = np.array([float(ii) for ii in scs_dat[scs_mask,23]])
+        scs_lsq_2 = np.array([float(ii) for ii in scs_dat[scs_mask,24]])
+
+        s_del_t = np.array([float(ii) for ii in s_dat[s_mask,11]])
+        s_update_t = np.array([float(ii) for ii in s_dat[s_mask,12]])
+        s_t_shift = s_del_t + s_update_t
+        s_corcoeft_1 = np.array([float(ii) for ii in s_dat[s_mask,17]])
+        s_corcoeft_2 = np.array([float(ii) for ii in s_dat[s_mask,18]])
+        s_lsq_1 = np.array([float(ii) for ii in s_dat[s_mask,23]])
+        s_lsq_2 = np.array([float(ii) for ii in s_dat[s_mask,24]])
+
+    except KeyError,IndexError:
+        print('KeyError,IndexError')
+        return 0
+
+    pick_counts = 0
+    for ii in range(len(slat)):
+        if gcarc[ii] >= args.max_dist or gcarc[ii] <= args.min_dist:
+            continue
+        if args.dt_shift:
+            if np.abs(s_del_t[ii]) < np.abs(s_update_t[ii]):
+                continue
+            if np.abs(scs_del_t[ii]) < np.abs(scs_update_t[ii]):
+                continue
+        if s_corcoeft_1[ii] < args.min_c1 or s_corcoeft_2[ii] < args.min_c2:
+            continue
+        if scs_corcoeft_1[ii] < args.min_c1 or scs_corcoeft_2[ii] < args.min_c2:
+            continue
+        if s_lsq_1[ii] < args.min_lsq1 or s_lsq_2[ii] < args.min_lsq2:
+            continue
+        if scs_lsq_1[ii] < args.min_lsq1 or scs_lsq_2[ii] < args.min_lsq2:
+            continue
+        if s_t_shift[ii] > args.max_dt:
+            continue
+        if scs_t_shift[ii] > args.max_dt:
+            continue
+
+        pick_counts += 1
+
+        if evdp[ii] > args.depth:
+            scs_s_de += [scs_t_shift[ii] - s_t_shift[ii]]
+            edist_de += [vincenty((slat[ii],slon[ii]),(rlat[ii],rlon[ii]))\
+                         .nautical/60]
+        else:
+            scs_s_sh += [scs_t_shift[ii] - s_t_shift[ii]]
+            edist_sh += [vincenty((slat[ii],slon[ii]),(rlat[ii],rlon[ii]))\
+                         .nautical/60]
+
+    return pick_counts
+
+main()
