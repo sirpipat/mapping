@@ -3,11 +3,12 @@
 '''
 ==============================================================================
 
-File Name : map_S_ray_path
-Purpose : map S traveltimes from h5 data_file
-Creation Date : 04-19-2017
-Last Modified : Mon 18 Sep 2017 04:43:24 PM EDT
-Created By : Samuel M. Haugland
+File Name : map_ScS_S_h5
+Purpose : map ScS-S traveltimes from h5 data_file
+Creation Date : 12-09-2017
+Last Modified : Mon 11 Sep 2018 03:46:24 PM EDT
+Created By : Samuel M. Haugland (as map_SS_S_h5)
+Modified by : Sirawich Pipatprathanporn
 
 ==============================================================================
 '''
@@ -42,8 +43,6 @@ def main():
                         default=0.70,help='minimum lsq_2 allowed')
     parser.add_argument('--max_dt',metavar='float',type=float,
                         default=30.0,help='maximum delta_T')
-    parser.add_argument('--min_dt',metavar='float',type=float,
-                        default=0.5,help='minimum delta_T')
     parser.add_argument('--dt_shift',metavar='bool',type=bool,
                         default=True,help='mandate updated time shift be less\
                                            than original')
@@ -52,8 +51,6 @@ def main():
     fig,ax = plt.subplots()
     dat_list = glob(args.h5_files)
     dat_list.sort()
-    fig = plt.gcf()
-    fig.set_size_inches(6,3)
     m = Basemap(projection='mbtfpq',lon_0=180,resolution='c')
     m.drawparallels(np.arange(-90.,120.,30.))
     m.drawmeridians(np.arange(0.,360.,60.))
@@ -77,41 +74,47 @@ def main():
         except IndexError:
             print 's20_index'
             s20_total += 0
-        try:
-            sdiff20_total += list_plot(h5f,m,sdiff20_total,'Sdiff20',args)
-        except IndexError:
-            print 'sdiff_index'
-            sdiff20_total += 0
-            continue
 
-    print 'S10 total: ', s10_total
-    print 'S20 total: ', s20_total
-    print 'Sdiff20 total: ', sdiff20_total
-    plt.title('S delay time')
+    print 'ScS10-S10 total: ', s10_total
+    print 'ScS10-S20 total: ', s20_total
     plt.tight_layout()
-    plt.savefig('S_ray_path.png')
+    plt.savefig('ScS-S.png')
     plt.show()
 
 def list_plot(h5f,m,total,name,args):
     try:
         s_dat = h5f[name]['pick_info'][:]
+        scs_dat = h5f['ScS10']['pick_info'][:]
         s_name = s_dat[:,1]
+        scs_name = scs_dat[:,1]
 
+        c = np.array(list(set(s_name).intersection(set(scs_name))))
+        s_mask = np.in1d(s_dat[:,1],c)
+        scs_mask = np.in1d(scs_dat[:,1],c)
 
-        slat = np.array([float(ii) for ii in s_dat[:,2]])
-        slon = np.array([float(ii) for ii in s_dat[:,3]])
-        rlat = np.array([float(ii) for ii in s_dat[:,4]])
-        rlon = np.array([float(ii) for ii in s_dat[:,5]])
-        gcarc = np.array([float(ii) for ii in s_dat[:,6]])
+        slat = np.array([float(ii) for ii in s_dat[s_mask,2]])
+        slon = np.array([float(ii) for ii in s_dat[s_mask,3]])
+        rlat = np.array([float(ii) for ii in s_dat[s_mask,4]])
+        rlon = np.array([float(ii) for ii in s_dat[s_mask,5]])
+        gcarc = np.array([float(ii) for ii in s_dat[s_mask,6]])
 
-        S_del_t = np.array([float(ii) for ii in s_dat[:,11]])
-        S_update_t = np.array([float(ii) for ii in s_dat[:,12]])
+        S_del_t = np.array([float(ii) for ii in s_dat[s_mask,11]])
+        S_update_t = np.array([float(ii) for ii in s_dat[s_mask,12]])
         S_t_shift = S_del_t+S_update_t
-        S_corcoeft_1 = np.array([float(ii) for ii in s_dat[:,17]])
-        S_corcoeft_2 = np.array([float(ii) for ii in s_dat[:,18]])
-        S_lsq_1 = np.array([float(ii) for ii in s_dat[:,23]])
-        S_lsq_2 = np.array([float(ii) for ii in s_dat[:,24]])
+        S_corcoeft_1 = np.array([float(ii) for ii in s_dat[s_mask,17]])
+        S_corcoeft_2 = np.array([float(ii) for ii in s_dat[s_mask,18]])
+        S_lsq_1 = np.array([float(ii) for ii in s_dat[s_mask,23]])
+        S_lsq_2 = np.array([float(ii) for ii in s_dat[s_mask,24]])
 
+        ScS_del_t = np.array([float(ii) for ii in scs_dat[scs_mask,11]])
+        ScS_update_t = np.array([float(ii) for ii in scs_dat[scs_mask,12]])
+        ScS_t_shift = ScS_del_t+ScS_update_t
+        ScS_corcoeft_1 = np.array([float(ii) for ii in scs_dat[scs_mask,17]])
+        ScS_corcoeft_2 = np.array([float(ii) for ii in scs_dat[scs_mask,18]])
+        ScS_lsq_1 = np.array([float(ii) for ii in scs_dat[scs_mask,23]])
+        ScS_lsq_2 = np.array([float(ii) for ii in scs_dat[scs_mask,24]])
+
+        time_diff = ScS_t_shift-S_t_shift
 
     except KeyError,IndexError:
         return 0
@@ -125,38 +128,49 @@ def list_plot(h5f,m,total,name,args):
             if np.abs(S_del_t[ii]) < np.abs(S_update_t[ii]):
                 #print 'S update'
                 continue
+            if np.abs(ScS_del_t[ii]) < np.abs(ScS_update_t[ii]):
+                #print 'ScS update'
+                continue
         if S_corcoeft_1[ii] < args.min_c1 or S_corcoeft_2[ii] < args.min_c2:
             #print 'S corcoeft'
             #print corcoeft_1[ii],corcoeft_2[ii]
             continue
+        if ScS_corcoeft_1[ii] < args.min_c1 or ScS_corcoeft_2[ii] < args.min_c2:
+            #print 'ScS corcoeft'
+            #print corcoeft_1[ii],corcoeft_2[ii]
             continue
         if S_lsq_1[ii] < args.min_lsq1 or S_lsq_2[ii] < args.min_lsq2:
             #print 'S lsq'
             #print lsq_1[ii],lsq_2[ii]
             continue
-        if np.abs(S_t_shift[ii]) > args.max_dt:
+        if ScS_lsq_1[ii] < args.min_lsq1 or ScS_lsq_2[ii] < args.min_lsq2:
+            #print 'ScS lsq'
+            #print lsq_1[ii],lsq_2[ii]
+            continue
+        if S_t_shift[ii] > args.max_dt:
             #print 'S_tshift'
             continue
-        if np.abs(S_t_shift[ii]) < args.min_dt:
-            #print 'S_tshift'
+        if ScS_t_shift[ii] > args.max_dt:
+            #print 'ScS_tshift'
             continue
         else:
-            plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],S_t_shift[ii])
+            plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],time_diff[ii])
             pick_count += 1
 
     lon,lat = m(slon[0],slat[0])
-    m.scatter(lon,lat,color='lime',s=40,marker='*',alpha=1,rasterized=True)
+    m.scatter(lon,lat,color='k',s=80,marker='D',rasterized=True)
+
+    print 'ScS10 -', name, 'Measurements:', pick_count
+
     return pick_count
 
 def plot_coords(m,slat,slon,rlat,rlon,del_t):
     stlo,stla = m(rlon,rlat)
-    evlo,evla = m(slon,slat)
     bearing = gps2dist_azimuth(slat,slon,rlat,rlon)[1]
     dist = gps2dist_azimuth(slat,slon,rlat,rlon)[0]/2000.
     origin = geopy.Point(slat,slon)
     destination = VincentyDistance(kilometers=dist).destination(origin,bearing)
     lon,lat = m(destination[1],destination[0])
-    mp_bearing = gps2dist_azimuth(destination[0],destination[1],rlat,rlon)[1]
     if abs(del_t) <= 2:
         size = 10
     if 2 < abs(del_t) and abs(del_t) <= 4:
@@ -173,17 +187,14 @@ def plot_coords(m,slat,slon,rlat,rlon,del_t):
         size = 70
     if del_t <= 0:
         color = 'blue'
-    #    marker = 'o'
+        marker = 'o'
         facecolor='none'
     if del_t > 0:
         color = 'red'
-    #    marker = 'x'
+        marker = 'x'
         facecolor='red'
-    u = size * np.sin(np.radians(mp_bearing))
-    v = size * np.cos(np.radians(mp_bearing))
-    m.quiver(lon,lat,u,v,color=color,width=0.001,alpha=0.3,headwidth=0.75,
-             headlength=1.25,headaxislength=1.125,pivot='mid',
-             scale=0.0001000,scale_units='xy',rasterized=True)
-    #m.scatter(stlo,stla,color='k',marker='v',alpha=0.1,s=5,rasterized=True)
+    m.scatter(lon,lat,linewidth=1,color=color,alpha=0.6,
+              s=1.5*size,marker=marker,facecolor=facecolor,rasterized=True)
+
 main()
 
