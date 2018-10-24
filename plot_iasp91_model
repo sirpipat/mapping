@@ -1,0 +1,32 @@
+#!/home/sirpipat/anaconda2/bin/python 
+
+'''
+==============================================================================
+
+File Name: plot_iasp91_model
+Purpose: plot P-wave and S-wave velocity based on iasp91 model
+Creation Date: Thu 27 Sep 2017
+Last Modified: The 27 Sep 2017
+Created By: Sirawich Pipatprathanporn
+==============================================================================
+'''
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def main():
+    a = np.genfromtxt('/home/sirpipat/Downloads/IASP91_IDV.csv',delimiter=',')
+
+    fig = plt.figure(figsize = [4,8])
+    ax = fig.add_subplot(111)
+    ax.plot(a[:,2],a[:,1],label='P-wave')
+    ax.plot(a[:,3],a[:,1],label='S-wave')
+    ax.set_xlabel('velocity [km/s]')
+    ax.set_ylabel('radius [km]')
+    ax.set_title('iasp91 model')
+    plt.legend(loc = 0)
+    plt.tight_layout()
+    plt.savefig('iasp91_model.png')
+    plt.show()
+
+main()

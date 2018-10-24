@@ -3,7 +3,7 @@
 '''
 ==============================================================================
 
-File Name : map_SS_S_ray_path
+File Name : map_SS_S_h5_ray_path_event_station
 Purpose : map SS-S traveltimes from h5 data_file
 Creation Date : 12-09-2017
 Last Modified : Mon 18 Sep 2017 04:43:24 PM EDT
@@ -86,9 +86,9 @@ def main():
     print 'SS20-S10 total: ', s10_total
     print 'SS20-S20 total: ', s20_total
     print 'SS20-Sdiff20 total: ', sdiff20_total
-    plt.title('SS-S delay time')
+    plt.title('Events and stations for SS-S map')
     plt.tight_layout()
-    plt.savefig('SS-S_ray_path.png')
+    plt.savefig('SS-S_ray_path_ES.png')
     plt.show()
 
 def list_plot(h5f,m,total,name,args):
@@ -166,11 +166,15 @@ def list_plot(h5f,m,total,name,args):
         if np.abs(SS_t_shift[ii]-S_t_shift[ii]) < args.min_dt:
             continue
         else:
-            plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],time_diff[ii])
+            #plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],time_diff[ii])
             pick_count += 1
 
+    #plot events
     lon,lat = m(slon[0],slat[0])
-    m.scatter(lon,lat,color='lime',s=40,marker='*',alpha=1,rasterized=True)
+    m.scatter(lon,lat,color='g',s=10,marker='*',alpha=0.6,rasterized=True)
+    #plot stations
+    lon,lat = m(rlon[:],rlat[:])
+    m.scatter(lon,lat,color='r',s=1,marker='o',alpha=0.1,rasterized=True)
     return pick_count
 
 def plot_coords(m,slat,slon,rlat,rlon,del_t):
