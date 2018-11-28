@@ -1,0 +1,168 @@
+#!/home/sirpipat/anaconda2/bin/python
+
+'''
+==============================================================================
+
+File Name : cluster_SS_S_amp_rat_h5_copy
+Purpose : make a cluster of SS-S amplitude ratio from h5 data_file
+Creation Date : 04-16-2018
+Last Modified : Thu 22 Mar 2018 04:43:24 PM EDT
+Created By : Samuel M. Haugland
+
+==============================================================================
+'''
+
+import numpy as np
+from geopy.distance import vincenty
+from matplotlib import pyplot as plt
+import argparse
+import h5py
+from glob import glob
+
+
+def main():
+    parser = argparse.ArgumentParser( 
+                       description='map S times')
+    parser.add_argument('-f','--h5_files',metavar='*picks.h5',type=str,
+                        help='list of h5_files')
+    parser.add_argument('-l','--max_dist',metavar='float',type=float,
+                        default=180,help='maximum_distance (deg)')
+    parser.add_argument('-s','--min_dist',metavar='float',type=float,
+                        default=40,help='minimum distance (deg)')
+    parser.add_argument('--min_c1',metavar='float',type=float,
+                        default=0.5,help='minimum corcoeft_1 allowed')
+    parser.add_argument('--min_c2',metavar='float',type=float,
+                        default=0.75,help='minimum corcoeft_2 allowed')
+    parser.add_argument('--min_lsq1',metavar='float',type=float,
+                        default=0.5,help='minimum lsq_1 allowed')
+    parser.add_argument('--min_lsq2',metavar='float',type=float,
+                        default=0.70,help='minimum lsq_2 allowed')
+    parser.add_argument('--max_dt',metavar='float',type=float,
+                        default=30.0,help='maximum delta_T')
+    parser.add_argument('--dt_shift',metavar='bool',type=bool,
+                        default=True,help='mandate updated time shift be less\
+                                           than original')
+
+    args = parser.parse_args()
+    dat_list = glob(args.h5_files)
+    dat_list.sort()
+    p10_s10_total = 0
+    p10_s20_total = 0
+    p20_s10_total = 0
+    p20_s20_total = 0
+
+    fname = open('deltP_deltS.csv','w')
+    fname.write('P-wave time shift, S-wave time shift\n')
+
+    for ii in dat_list:
+        print ii
+        try:
+            h5f = h5py.File(ii,'r',driver='core')
+        except IOError:
+            print 'IOError'
+            continue
+        try:
+            p10_s10_total += list_plot(h5f,'P10','S10',args,fname)
+        except IndexError:
+            print 'p10_s10_index'
+            p10_s10_total += 0
+        try:
+            p10_s20_total += list_plot(h5f,'P10','S20',args,fname)
+        except IndexError:
+            print 'p10_s20_index'
+            p10_s20_total += 0
+        try:
+            p20_s10_total += list_plot(h5f,'P20','S10',args,fname)
+        except IndexError:
+            print 'p20_s10_index'
+            p20_s10_total += 0
+        try:
+            p20_s20_total += list_plot(h5f,'P20','S20',args,fname)
+        except IndexError:
+            print 'p20_s20_index'
+            p20_s20_total += 0
+            continue
+
+    fname.close()
+    print 'P10-S10 total: ', p10_s10_total
+    print 'P10-S20 total: ', p10_s20_total
+    print 'P20-S10 total: ', p20_s10_total
+    print 'P20-S20 total: ', p20_s20_total
+
+def list_plot(h5f,pname,sname,args,fname):
+    try:
+        s_dat = h5f[sname]['pick_info'][:]
+        p_dat = h5f[pname]['pick_info'][:]
+        s_name = s_dat[:,1]
+        p_name = p_dat[:,1]
+
+        c = np.array(list(set(s_name).intersection(set(p_name))))
+        s_mask = np.in1d(s_dat[:,1],c)
+        p_mask = np.in1d(p_dat[:,1],c)
+
+        gcarc = np.array([float(ii) for ii in s_dat[s_mask,6]])
+
+        S_del_t = np.array([float(ii) for ii in s_dat[s_mask,11]])
+        S_update_t = np.array([float(ii) for ii in s_dat[s_mask,12]])
+        S_t_shift = S_del_t + S_update_t
+        S_corcoeft_1 = np.array([float(ii) for ii in s_dat[s_mask,17]])
+        S_corcoeft_2 = np.array([float(ii) for ii in s_dat[s_mask,18]])
+        S_lsq_1 = np.array([float(ii) for ii in s_dat[s_mask,23]])
+        S_lsq_2 = np.array([float(ii) for ii in s_dat[s_mask,24]])
+
+        P_del_t = np.array([float(ii) for ii in p_dat[p_mask,11]])
+        P_update_t = np.array([float(ii) for ii in p_dat[p_mask,12]])
+        P_t_shift = P_del_t + P_update_t
+        P_corcoeft_1 = np.array([float(ii) for ii in p_dat[p_mask,17]])
+        P_corcoeft_2 = np.array([float(ii) for ii in p_dat[p_mask,18]])
+        P_lsq_1 = np.array([float(ii) for ii in p_dat[p_mask,23]])
+        P_lsq_2 = np.array([float(ii) for ii in p_dat[p_mask,24]])
+
+    except KeyError,IndexError:
+        return 0
+
+    pick_count = 0
+    for ii in range(len(gcarc)):
+        if gcarc[ii] >= args.max_dist or gcarc[ii] <= args.min_dist:
+            #print 'gcarc'
+            continue
+        if args.dt_shift:
+            if np.abs(S_del_t[ii]) < np.abs(S_update_t[ii]):
+                #print 'S update'
+                continue
+            if np.abs(P_del_t[ii]) < np.abs(P_update_t[ii]):
+                #print 'P update'
+                continue
+        if S_corcoeft_1[ii] < args.min_c1 or S_corcoeft_2[ii] < args.min_c2:
+            #print 'S corcoeft'
+            #print corcoeft_1[ii],corcoeft_2[ii]
+            continue
+        if P_corcoeft_1[ii] < args.min_c1 or P_corcoeft_2[ii] < args.min_c2:
+            #print 'P corcoeft'
+            #print corcoeft_1[ii],corcoeft_2[ii]
+            continue
+        if S_lsq_1[ii] < args.min_lsq1 or S_lsq_2[ii] < args.min_lsq2:
+            #print 'S lsq'
+            #print lsq_1[ii],lsq_2[ii]
+            continue
+        if P_lsq_1[ii] < args.min_lsq1 or P_lsq_2[ii] < args.min_lsq2:
+            #print 'P lsq'
+            #print lsq_1[ii],lsq_2[ii]
+            continue
+        if S_t_shift[ii] > args.max_dt:
+            #print 'S_tshift'
+            continue
+        if P_t_shift[ii] > args.max_dt:
+            #print 'SS_tshift'
+            continue
+        else:
+            fname.write(str(P_t_shift[ii]))
+            fname.write(',')
+            fname.write(str(S_t_shift[ii]))
+            fname.write('\n')
+            pick_count += 1
+
+    return pick_count
+
+main()
+

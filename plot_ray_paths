@@ -1,0 +1,50 @@
+#!/home/sirpipat/anaconda2/bin/python 
+
+'''
+==============================================================================
+
+File Name: plot_ray_paths
+Purpose: plot P-wave and S-wave paths based on iasp91 model
+Creation Date: Tue 28 Nov 2018
+Last Modified: Tue 28 Nov 2018
+Created By: Sirawich Pipatprathanporn
+==============================================================================
+'''
+
+import numpy as np
+import matplotlib.pyplot as plt
+from obspy.taup import TauPyModel
+
+def main():
+    model = TauPyModel(model = 'iasp91')
+
+    fig = plt.figure(figsize = [6,6])
+    ax = fig.add_subplot(111,polar=True)
+    arrivals = model.get_ray_paths(10, 60, phase_list = ['PP','SS'])
+    ax = arrivals.plot_rays(plot_type = 'spherical', legend = True,
+                            ax = ax, show = False, plot_all = True)
+    arrivals = model.get_ray_paths(10, 103, phase_list = ['Pdiff','Sdiff'])
+    ax = arrivals.plot_rays(plot_type = 'spherical', legend = True,
+                            ax = ax, show = False, plot_all
+                            = True)
+
+
+    # annotate regions
+    ax.text(0, 0, 'Solid\ninner\ncore',
+            horizontalalignment='center', verticalalignment='center',
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+    ocr = (model.model.radius_of_planet -
+          (model.model.s_mod.v_mod.iocb_depth +
+          model.model.s_mod.v_mod.cmb_depth) / 2)
+    ax.text(np.deg2rad(180), ocr, 'Fluid outer core',
+            horizontalalignment='center',
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+    mr = model.model.radius_of_planet - model.model.s_mod.v_mod.cmb_depth / 2
+    ax.text(np.deg2rad(180), mr, 'Solid mantle',
+            horizontalalignment='center',
+            bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+    plt.tight_layout()
+    plt.savefig('spherical_path_PP_SS.png')
+    plt.show()
+
+main()

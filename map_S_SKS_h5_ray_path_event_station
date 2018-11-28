@@ -1,0 +1,214 @@
+#!/home/sirpipat/anaconda2/bin/python
+
+'''
+==============================================================================
+
+File Name : map_S_SKS_ray_path_event_station
+Purpose : map SKS-S traveltimes from h5 data_file
+Creation Date : 10-31-2018
+Last Modified : Wed 31 Oct 2018 04:43:24 PM EDT
+Created By : Sirawich Pipatprathanporn
+
+==============================================================================
+'''
+
+import numpy as np
+from obspy.geodetics.base import gps2dist_azimuth
+import geopy
+from geopy.distance import VincentyDistance
+from matplotlib import pyplot as plt
+from mpl_toolkits.basemap import Basemap
+import argparse
+import h5py
+from glob import glob
+
+
+def main():
+    parser = argparse.ArgumentParser(
+                       description='map S times')
+    parser.add_argument('-f','--h5_files',metavar='*picks.h5',type=str,
+                        help='list of h5_files')
+    parser.add_argument('-l','--max_dist',metavar='float',type=float,
+                        default=180,help='maximum_distance (deg)')
+    parser.add_argument('-s','--min_dist',metavar='float',type=float,
+                        default=40,help='minimum distance (deg)')
+    parser.add_argument('--min_c1',metavar='float',type=float,
+                        default=0.5,help='minimum corcoeft_1 allowed')
+    parser.add_argument('--min_c2',metavar='float',type=float,
+                        default=0.75,help='minimum corcoeft_2 allowed')
+    parser.add_argument('--min_lsq1',metavar='float',type=float,
+                        default=0.5,help='minimum lsq_1 allowed')
+    parser.add_argument('--min_lsq2',metavar='float',type=float,
+                        default=0.70,help='minimum lsq_2 allowed')
+    parser.add_argument('--max_dt',metavar='float',type=float,
+                        default=30.0,help='maximum delta_T')
+    parser.add_argument('--min_dt',metavar='float',type=float,
+                        default=1.0,help='minimum delta_T')
+    parser.add_argument('--dt_shift',metavar='bool',type=bool,
+                        default=True,help='mandate updated time shift be less\
+                                           than original')
+
+    args = parser.parse_args()
+    fig,ax = plt.subplots()
+    dat_list = glob(args.h5_files)
+    dat_list.sort()
+    fig = plt.gcf()
+    fig.set_size_inches(6,3)
+    m = Basemap(projection='mbtfpq',lon_0=180,resolution='c')
+    m.drawparallels(np.arange(-90.,120.,30.))
+    m.drawmeridians(np.arange(0.,360.,60.))
+    m.drawcoastlines()
+    s10_total = 0
+    s20_total = 0
+    for ii in dat_list:
+        print ii
+        try:
+            h5f = h5py.File(ii,'r',driver='core')
+        except IOError:
+            continue
+        try:
+            s10_total += list_plot(h5f,m,s10_total,'S10',args)
+        except IndexError:
+            print 's10_index'
+            s10_total += 0
+        try:
+            s20_total += list_plot(h5f,m,s20_total,'S20',args)
+        except IndexError:
+            print 's20_index'
+            s20_total += 0
+
+    print 'SKS15-S10 total: ', s10_total
+    print 'SKS15-S20 total: ', s20_total
+    plt.title('S-SKS delay time')
+    plt.tight_layout()
+    plt.savefig('S-SKS_ray_path_ES.png')
+    plt.show()
+
+def list_plot(h5f,m,total,name,args):
+    try:
+        s_dat = h5f[name]['pick_info'][:]
+        sks_dat = h5f['SKS15']['pick_info'][:]
+        s_name = s_dat[:,1]
+        sks_name = sks_dat[:,1]
+
+        c = np.array(list(set(s_name).intersection(set(sks_name))))
+        s_mask = np.in1d(s_dat[:,1],c)
+        sks_mask = np.in1d(sks_dat[:,1],c)
+
+        slat = np.array([float(ii) for ii in s_dat[s_mask,2]])
+        slon = np.array([float(ii) for ii in s_dat[s_mask,3]])
+        rlat = np.array([float(ii) for ii in s_dat[s_mask,4]])
+        rlon = np.array([float(ii) for ii in s_dat[s_mask,5]])
+        gcarc = np.array([float(ii) for ii in s_dat[s_mask,6]])
+
+        S_del_t = np.array([float(ii) for ii in s_dat[s_mask,11]])
+        S_update_t = np.array([float(ii) for ii in s_dat[s_mask,12]])
+        S_t_shift = S_del_t+S_update_t
+        S_corcoeft_1 = np.array([float(ii) for ii in s_dat[s_mask,17]])
+        S_corcoeft_2 = np.array([float(ii) for ii in s_dat[s_mask,18]])
+        S_lsq_1 = np.array([float(ii) for ii in s_dat[s_mask,23]])
+        S_lsq_2 = np.array([float(ii) for ii in s_dat[s_mask,24]])
+
+        SKS_del_t = np.array([float(ii) for ii in sks_dat[sks_mask,11]])
+        SKS_update_t = np.array([float(ii) for ii in sks_dat[sks_mask,12]])
+        SKS_t_shift = SKS_del_t+SKS_update_t
+        SKS_corcoeft_1 = np.array([float(ii) for ii in sks_dat[sks_mask,17]])
+        SKS_corcoeft_2 = np.array([float(ii) for ii in sks_dat[sks_mask,18]])
+        SKS_lsq_1 = np.array([float(ii) for ii in sks_dat[sks_mask,23]])
+        SKS_lsq_2 = np.array([float(ii) for ii in sks_dat[sks_mask,24]])
+
+        time_diff = S_t_shift-SKS_t_shift
+
+    except KeyError,IndexError:
+        return 0
+
+    pick_count = 0
+    for ii in range(len(slat)):
+        if gcarc[ii] >= args.max_dist or gcarc[ii] <= args.min_dist:
+            #print 'gcarc'
+            continue
+        if args.dt_shift:
+            if np.abs(S_del_t[ii]) < np.abs(S_update_t[ii]):
+                #print 'S update'
+                continue
+            if np.abs(SKS_del_t[ii]) < np.abs(SKS_update_t[ii]):
+                #print 'SKS update'
+                continue
+        if S_corcoeft_1[ii] < args.min_c1 or S_corcoeft_2[ii] < args.min_c2:
+            #print 'S corcoeft'
+            #print corcoeft_1[ii],corcoeft_2[ii]
+            continue
+        if SKS_corcoeft_1[ii] < args.min_c1 or SKS_corcoeft_2[ii] < args.min_c2:
+            #print 'SKS corcoeft'
+            #print corcoeft_1[ii],corcoeft_2[ii]
+            continue
+        if S_lsq_1[ii] < args.min_lsq1 or S_lsq_2[ii] < args.min_lsq2:
+            #print 'S lsq'
+            #print lsq_1[ii],lsq_2[ii]
+            continue
+        if SKS_lsq_1[ii] < args.min_lsq1 or SKS_lsq_2[ii] < args.min_lsq2:
+            #print 'SKS lsq'
+            #print lsq_1[ii],lsq_2[ii]
+            continue
+        if S_t_shift[ii] > args.max_dt:
+            #print 'S_tshift'
+            continue
+        if SKS_t_shift[ii] > args.max_dt:
+            #print 'SKS_tshift'
+            continue
+        if np.abs(time_diff[ii]) < args.min_dt:
+            continue
+        else:
+            #plot_coords(m,slat[ii],slon[ii],rlat[ii],rlon[ii],time_diff[ii])
+            pick_count += 1
+
+    #Plot events
+    lon,lat = m(slon[0],slat[0])
+    m.scatter(lon,lat,color='g',s=10,marker='*',alpha=0.6,rasterized=True)
+    #Plot stations
+    lon,lat = m(rlon[:],rlat[:])
+    m.scatter(lon,lat,color='r',s=1,marker='o',alpha=0.1,rasterized=True)
+
+    print 'SKS15 -', name, 'Measurements:', pick_count
+
+    return pick_count
+
+def plot_coords(m,slat,slon,rlat,rlon,del_t):
+    stlo,stla = m(rlon,rlat)
+    evlo,evla = m(slon,slat)
+    bearing = gps2dist_azimuth(slat,slon,rlat,rlon)[1]
+    dist = gps2dist_azimuth(slat,slon,rlat,rlon)[0]/2000.
+    origin = geopy.Point(slat,slon)
+    destination = VincentyDistance(kilometers=dist).destination(origin,bearing)
+    lon,lat = m(destination[1],destination[0])
+    mp_bearing = gps2dist_azimuth(destination[0],destination[1],rlat,rlon)[1]
+    if abs(del_t) <= 2:
+        size = 10
+    if 2 < abs(del_t) and abs(del_t) <= 4:
+        size = 20
+    if 4 < abs(del_t) and abs(del_t) <= 6:
+        size = 30
+    if 6 < abs(del_t) and abs(del_t) <= 8:
+        size = 40
+    if 8 < abs(del_t) and abs(del_t) <= 10:
+        size = 50
+    if 10 < abs(del_t) and abs(del_t) <= 12:
+        size = 60
+    if abs(del_t) > 12:
+        size = 70
+    if del_t <= 0:
+        color = 'blue'
+    #    marker = 'o'
+        facecolor='none'
+    if del_t > 0:
+        color = 'red'
+    #    marker = 'x'
+        facecolor='red'
+    u = size * np.sin(np.radians(mp_bearing))
+    v = size * np.cos(np.radians(mp_bearing))
+    m.quiver(lon,lat,u,v,color=color,width=0.001,alpha=0.1,headwidth=0.75,
+             headlength=1.25,headaxislength=1.125,pivot='mid',
+             scale=0.0001000,scale_units='xy',rasterized=True)
+    #m.scatter(stlo,stla,color='k',marker='v',alpha=0.1,s=5,rasterized=True)
+main()
+
