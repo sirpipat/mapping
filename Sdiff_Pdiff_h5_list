@@ -3,7 +3,7 @@
 '''
 ==============================================================================
 
-File Name : SS_PP_h5_list 
+File Name : Sdiff_Pdiff_h5_list
 Purpose : make a cluster of SS-S amplitude ratio from h5 data_file
 Creation Date : 04-16-2018
 Last Modified : Thu 22 Mar 2018 04:43:24 PM EDT
@@ -21,7 +21,7 @@ from glob import glob
 
 
 def main():
-    parser = argparse.ArgumentParser(
+    parser = argparse.ArgumentParser( 
                        description='map S times')
     parser.add_argument('-f','--h5_files',metavar='*picks.h5',type=str,
                         help='list of h5_files')
@@ -46,10 +46,10 @@ def main():
     args = parser.parse_args()
     dat_list = glob(args.h5_files)
     dat_list.sort()
-    pp20_ss20_total = 0
+    pdiff20_sdiff20_total = 0
 
-    fname = open('deltPP_deltSS.csv','w')
-    fname.write('PP-wave time shift, SS-wave time shift\n')
+    fname = open('deltPdiff_deltSdiff-103.csv','w')
+    fname.write('Pdiff-wave time shift, Sdiff-wave time shift\n')
 
     for ii in dat_list:
         print ii
@@ -59,14 +59,14 @@ def main():
             print 'IOError'
             continue
         try:
-            pp20_ss20_total += list_plot(h5f,'PP20','SS20',args,fname)
+            pdiff20_sdiff20_total += list_plot(h5f,'Pdiff20','Sdiff20',args,fname)
         except IndexError:
-            print 'pp20_ss20_index'
-            pp20_ss20_total += 0
+            print 'pdiff20_sdiff20_index'
+            pdiff20_sdiff20_total += 0
             continue
 
     fname.close()
-    print 'PP20-SS20 total: ', pp20_ss20_total
+    print 'Pdiff20-Sdiff20 total: ', pdiff20_sdiff20_total
 
 def list_plot(h5f,pname,sname,args,fname):
     try:

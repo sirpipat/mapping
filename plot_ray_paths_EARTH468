@@ -3,8 +3,9 @@
 '''
 ==============================================================================
 
-File Name: plot_ray_paths
-Purpose: plot P-wave and S-wave paths based on iasp91 model
+File Name: plot_ray_paths_EARTH468
+Purpose: plot P-wave and S-wave paths based on iasp91 model (for EARTH 468
+         final project)
 Creation Date: Tue 28 Nov 2018
 Last Modified: Tue 28 Nov 2018
 Created By: Sirawich Pipatprathanporn
@@ -18,43 +19,33 @@ from obspy.taup import TauPyModel
 def main():
     model = TauPyModel(model = 'iasp91')
 
-    PHASE = [
-            ('SS', 95),
-            ('S', 95),
-            ('SKS', 95),
-            ('S', 95),
-            ('ScS', 60),
-            ('S', 60)
-            ]
+    fig = plt.figure(figsize = [6,6])
+    ax = fig.add_subplot(111,polar=True)
+#    arrivals = model.get_ray_paths(10, 60, phase_list = ['PP','SS'])
+#    ax = arrivals.plot_rays(plot_type = 'spherical', legend = True,
+#                            ax = ax, show = False, plot_all = True)
+    arrivals = model.get_ray_paths(10, 80, phase_list = ['P','S'])
+    ax = arrivals.plot_rays(plot_type = 'spherical', legend = True,
+                            ax = ax, show = False, plot_all
+                            = True)
 
-    plot_cross_section(model, PHASE[0:2], 'spherical_path_SS-S.png')
-    plot_cross_section(model, PHASE[2:4], 'spherical_path_SKS-S.png')
-    plot_cross_section(model, PHASE[4:6], 'spherical_path_ScS-S.png')
-
-def plot_cross_section(model, phases, filename):
-    fig = plt.figure(figsize=[3,3])
-    ax = fig.add_subplot(111, polar = True)
-    for phase, distance in phases:
-        arrivals = model.get_ray_paths(10, distance, phase_list = [phase])
-        ax = arrivals.plot_rays(plot_type = 'spherical', legend = True,
-                                ax = ax, show = False, plot_all = True)
 
     # annotate regions
-    ax.text(0, 0, 'Inner\ncore',
+    ax.text(0, 0, 'Solid\ninner\ncore',
             horizontalalignment='center', verticalalignment='center',
             bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
     ocr = (model.model.radius_of_planet -
           (model.model.s_mod.v_mod.iocb_depth +
           model.model.s_mod.v_mod.cmb_depth) / 2)
-    ax.text(np.deg2rad(180), ocr, 'Outer core',
+    ax.text(np.deg2rad(180), ocr, 'Fluid outer core',
             horizontalalignment='center',
             bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
     mr = model.model.radius_of_planet - model.model.s_mod.v_mod.cmb_depth / 2
-    ax.text(np.deg2rad(180), mr, 'Mantle',
+    ax.text(np.deg2rad(180), mr, 'Solid mantle',
             horizontalalignment='center',
             bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
     plt.tight_layout()
-    plt.savefig(filename)
+    plt.savefig('spherical_path_P_S.png')
     plt.show()
 
 main()

@@ -3,17 +3,19 @@
 '''
 ==============================================================================
 
-File Name : SS_PP_h5_list 
-Purpose : make a cluster of SS-S amplitude ratio from h5 data_file
-Creation Date : 04-16-2018
+File Name : SS_PP_h5_list_outlier
+Purpose : list the S-P travel time shift outliers from h5 data_file
+Creation Date : 01-29-2019
 Last Modified : Thu 22 Mar 2018 04:43:24 PM EDT
-Created By : Samuel M. Haugland
+Created By : Sirawich Pipatprathanporn
 
 ==============================================================================
 '''
 
 import numpy as np
-from geopy.distance import vincenty
+from obspy.geodetics.base import gps2dist_azimuth
+from geopy.distance import VincentyDistance
+import geopy
 from matplotlib import pyplot as plt
 import argparse
 import h5py
@@ -48,8 +50,10 @@ def main():
     dat_list.sort()
     pp20_ss20_total = 0
 
-    fname = open('deltPP_deltSS.csv','w')
-    fname.write('PP-wave time shift, SS-wave time shift\n')
+    fname = open('deltPP_deltSS_outliers.csv','w')
+    fname.write('Pdiff-wave time shift, Sdiff-wave time shift, Source lattitude,\
+            Source longitude, Receiver lattitude, Receiver longitude,\
+            Midpoint lattitude, Midpoint longitude\n')
 
     for ii in dat_list:
         print ii
@@ -79,6 +83,10 @@ def list_plot(h5f,pname,sname,args,fname):
         s_mask = np.in1d(s_dat[:,1],c)
         p_mask = np.in1d(p_dat[:,1],c)
 
+        slat = np.array([float(ii) for ii in s_dat[s_mask,2]])
+        slon = np.array([float(ii) for ii in s_dat[s_mask,3]])
+        rlat = np.array([float(ii) for ii in s_dat[s_mask,4]])
+        rlon = np.array([float(ii) for ii in s_dat[s_mask,5]])
         gcarc = np.array([float(ii) for ii in s_dat[s_mask,6]])
 
         S_del_t = np.array([float(ii) for ii in s_dat[s_mask,11]])
@@ -132,16 +140,40 @@ def list_plot(h5f,pname,sname,args,fname):
             #print 'S_tshift'
             continue
         if np.abs(P_t_shift[ii]) > args.max_dt:
-            #print 'SS_tshift'
+            #print 'P_tshift'
+            continue
+        if np.abs(S_t_shift[ii] - 2 * P_t_shift[ii]) <= 18:
+            #print 'not an outlier'
             continue
         else:
+            mlat,mlon = find_midpoints(slat[ii],slon[ii],rlat[ii],rlon[ii])
             fname.write(str(P_t_shift[ii]))
             fname.write(',')
             fname.write(str(S_t_shift[ii]))
+            fname.write(',')
+            fname.write(str(slat[ii]))
+            fname.write(',')
+            fname.write(str(slon[ii]))
+            fname.write(',')
+            fname.write(str(rlat[ii]))
+            fname.write(',')
+            fname.write(str(rlon[ii]))
+            fname.write(',')
+            fname.write(str(mlat))
+            fname.write(',')
+            fname.write(str(mlon))
             fname.write('\n')
             pick_count += 1
 
     return pick_count
+
+def find_midpoints(slat,slon,rlat,rlon):
+    gps = gps2dist_azimuth(slat,slon,rlat,rlon)
+    bearing = gps[1]
+    dist = gps[0]/2000
+    origin = geopy.Point(slat,slon)
+    midpoint = VincentyDistance(kilometers=dist).destination(origin,bearing)
+    return midpoint[0],midpoint[1]
 
 main()
 
